@@ -70,7 +70,7 @@ export function SignInForm() {
           submit: error.message,
         }));
       } else {
-        window.location.href = "/dashboard";
+        window.location.href = "/home";
       }
     } catch (err: any) {
       setErrors((prev) => ({
