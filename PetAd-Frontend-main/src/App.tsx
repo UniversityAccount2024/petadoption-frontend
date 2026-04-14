@@ -17,35 +17,35 @@ import ListingDetailsPage from "./pages/ListingDetailsPage";
 
 function App() {
   return (
-    <Routes>
-      {/* Auth Routes - No Navbar/Footer */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/reset" element={<ResetPasswordPage />} />
-      <Route path="/forgot-password" element={<ForgetPasswordPage />} />
+    <BrowserRouter>
+      <Routes>
+        {/* Auth Routes - No Navbar/Footer */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/reset" element={<ResetPasswordPage />} />
+        <Route path="/forgot-password" element={<ForgetPasswordPage />} />
 
-      {/* Main App Routes - With Navbar/Footer */}
-      <Route element={<MainLayout />}>
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/favourites" element={<FavouritePage />} />
-        <Route path="/interests" element={<InterestPage />} />
-        <Route path="/listings" element={<ListingsPage />} />
-        <Route path="/notifications" element={<NotificationPage />} />
+        {/* Main App Routes - Wrapped in MainLayout (Navbar/Footer) */}
+        <Route element={<MainLayout />}>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/favourites" element={<FavouritePage />} />
+          <Route path="/interests" element={<InterestPage />} />
+          <Route path="/listings" element={<ListingsPage />} />
+          <Route path="/notifications" element={<NotificationPage />} />
+          
+          {/* These were outside—I moved them back inside the Layout! */}
+          <Route path="/listings/:id" element={<PetListingDetailsPage />} />
+          <Route path="/list-for-adoption" element={<EditAdoptionListing />} />
+          <Route path="/my-listings/:id" element={<ListingDetailsPage />} />
 
-        {/* Preview Routes */}
-        <Route path="/preview-modal" element={<ModalPreview />} />
-        <Route path="/adoption-completion-demo" element={<AdoptionCompletionDemo />} />
-
-        {/* Test Route */}
+          {/* Preview Routes */}
+          <Route path="/preview-modal" element={<ModalPreview />} />
+          <Route path="/adoption-completion-demo" element={<AdoptionCompletionDemo />} />
+        </Route>
       </Routes>
     </BrowserRouter>
-        <Route path="/listings/:id" element={<PetListingDetailsPage />} />
-        <Route path="/list-for-adoption" element={<EditAdoptionListing />} />
-        <Route path="/my-listings/:id" element={<ListingDetailsPage />} />
-      </Route>
-    </Routes>
   );
 }
 
