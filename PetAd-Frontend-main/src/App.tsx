@@ -1,4 +1,3 @@
-import { Navigate, Route, Routes } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import FavouritePage from "./pages/FavouritePage";
 import HomePage from "./pages/HomePage";
@@ -14,12 +13,11 @@ import { AdoptionCompletionDemo } from "./pages/AdoptionCompletionDemo";
 import PetListingDetailsPage from "./pages/PetlistingdetailsPage";
 import EditAdoptionListing from "./pages/EditAdoptionListing";
 import ListingDetailsPage from "./pages/ListingDetailsPage";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ModalPreview from "./pages/ModalPreview"; 
 
 function App() {
   return (
-    <BrowserRouter>
       <Routes>
         {/* Auth Routes - No Navbar/Footer */}
         <Route path="/" element={<Navigate to="/login" replace />} />
@@ -46,8 +44,7 @@ function App() {
           <Route path="/preview-modal" element={<ModalPreview />} />
           <Route path="/adoption-completion-demo" element={<AdoptionCompletionDemo />} />
         </Route>
-      </Routes>
-    </BrowserRouter>
+    </Routes>
   );
 }
 
