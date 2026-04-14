@@ -14,7 +14,7 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-      {/* Logo */}
+      {/* 1. Logo */}
       <Link to="/home" className="flex items-center gap-2">
         <img src={logo} alt="Logo" className="w-8 h-8" />
         <div>
@@ -27,7 +27,7 @@ export function Navbar() {
         </div>
       </Link>
 
-      {/* Navigation Links */}
+      {/* 2. Main Navigation Links (Middle) */}
       <div className="hidden md:flex items-center gap-8">
         {navLinks.map((link) => {
           const Icon = link.icon;
@@ -47,9 +47,9 @@ export function Navbar() {
         })}
       </div>
 
-      {/* Action Icons and Profile */}
+      {/* 3. Action Icons and Profile (Right Side) */}
       <div className="flex items-center gap-4">
-        {/* Favorite Icon with Badge */}
+        {/* Favourites */}
         <Link
           to="/favourites"
           className="relative p-2.5 bg-gray-50 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
@@ -60,7 +60,7 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Notification Icon with Red Dot */}
+        {/* Notifications */}
         <Link
           to="/notifications"
           className="relative p-2.5 bg-gray-50 rounded-full text-gray-700 hover:bg-gray-100 transition-colors"
@@ -69,17 +69,20 @@ export function Navbar() {
           <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
         </Link>
 
-        {/* User Profile */}
-        <div className="flex items-center gap-3 ml-2 cursor-pointer group">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-100">
+        {/* Profile Link */}
+        <Link 
+          to="/profile" 
+          className="flex items-center gap-3 ml-2 cursor-pointer group hover:opacity-80 transition-all"
+        >
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-[#E84D2A]/30">
             <img src={owner} alt="User Avatar" className="w-full h-full object-cover" />
           </div>
           <div className="hidden sm:block">
-            <p className="text-[10px] text-gray-400 font-medium">Good Morning!</p>
+            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Good Morning!</p>
             <p className="text-[14px] text-[#001323] font-bold">Scarlet Johnson</p>
           </div>
           <ChevronDown size={18} className="text-gray-400 group-hover:text-gray-600 transition-colors" />
-        </div>
+        </Link>
       </div>
     </nav>
   );
