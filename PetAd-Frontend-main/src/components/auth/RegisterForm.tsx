@@ -5,6 +5,7 @@ import { useState, type InputHTMLAttributes } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthModal } from "../ui/authModal";
 import { IdentityVerificationModal } from "../ui/IdentityVerificationModal";
+import { supabase } from "../../api/supabase";
 
 // ─── Reusable: FormInput ──────────────────────────────────────────────────────
 
@@ -332,15 +333,50 @@ export function RegisterForm() {
     }
   };
 
+  // Replaced old handleSumbit 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setIsLoading(true);
-    // TODO: wire to API
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsLoading(false);
+  e.preventDefault();
+
+  if (!validate()) return;
+
+  setIsLoading(true);
+
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    if (error) {
+      setErrors({ email: error.message });
+      return;
+    }
+
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          id: data.user.id,
+          full_name: formData.fullName,
+          nin: formData.nin,
+        });
+
+      if (profileError) {
+        setErrors({ email: profileError.message });
+        return;
+      }
+    }
+
     setShowSuccessModal(true);
-  };
+
+  } catch (err: any) {
+    setErrors({
+      email: err.message || "Something went wrong.",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleGoogle = () => {
     // Show Identity Modal for testing purposes
