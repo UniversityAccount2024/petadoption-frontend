@@ -9,7 +9,7 @@ import dog1Image from "../assets/dog_1.png";
 import goldenRetriever from "../assets/golden_retriever.png";
 
 // Configuration
-const CONTRACT_ADDRESS = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B";
+const CONTRACT_ADDRESS = import.meta.env.VITE_PET_ADOPTION_ADDRESS;
 
 // --- Interfaces ---
 interface PetListing {
