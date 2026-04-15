@@ -60,30 +60,56 @@ function getListingDetails(id: string) {
 // --- 2. The Main Component ---
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const { isConnected } = useAccount(); // Check if wallet is connected
+    const { isConnected, address } = useAccount(); // address gives connected wallet ID
 
-    // State logic
+    // 1. Fixed State Declaration
+    const [profile, setProfile] = useState<{full_name: string, avatar_url: string} | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // 2. Add the Fetch Logic
+    useEffect(() => {
+        async function fetchProfile() {
+            try {
+                // fetch profile from Supabase. 
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('full_name, avatar_url')
+                    .eq('id', address)
+                    .single(); 
+
+                if (data) setProfile(data);
+            } catch (err) {
+                console.error("Error fetching profile:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchProfile();
+    }, [address]); // Refetch if the wallet address changes
+
+    // Tab & Modal State
     const [activeTab, setActiveTab] = useState<"adoption" | "listing">("adoption");
-    const [isVerified, setIsVerified] = useState(true); // Default to true for current UI view
     const [adoptionDetailsId, setAdoptionDetailsId] = useState<string | null>(null);
     const [listingDetailsId, setListingDetailsId] = useState<string | null>(null);
 
     const adoptionDetails = adoptionDetailsId ? getAdoptionDetails(adoptionDetailsId) : null;
     const listingDetails = listingDetailsId ? getListingDetails(listingDetailsId) : null;
 
-    const handleListerClick = (_profileId: string) => {
+    const handleListerClick = (profileId: string) => {
         setAdoptionDetailsId(null);
-        navigate(`/profile`);
+        // navigate(`/profile/${profileId}`); // You can use this later for other users
+        navigate(`/profile`); 
     };
 
-    const handleAdopterClick = (_profileId: string) => {
+    const handleAdopterClick = (profileId: string) => {
         setListingDetailsId(null);
         navigate("/profile");
     };
 
     return (
         <div className="min-h-screen flex flex-col pb-12 bg-gray-50">
-            {/* Custom Top Bar for Wallet */}
+            {/* Top Bar */}
             <div className="bg-white border-b border-gray-100 h-20 mb-8 shrink-0 flex items-center justify-between px-8">
                 <h1 className="text-xl font-bold text-gray-800">My Profile</h1>
                 <ConnectButton /> 
@@ -94,8 +120,17 @@ export default function ProfilePage() {
                 {/* Profile Card Sidebar */}
                 <div className="w-full md:w-[340px] lg:w-[380px] border border-gray-200 rounded-2xl p-6 bg-white shadow-sm h-fit">
                     <div className="relative mb-4 flex justify-center">
-                        <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-sm">
-                            <img src={ownerImg} alt="Profile" className="w-full h-full object-cover" />
+                        <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gray-100">
+                            {/* Image Logic */}
+                            {loading ? (
+                                <div className="w-full h-full animate-pulse bg-gray-200" />
+                            ) : (
+                                <img 
+                                    src={profile?.avatar_url || ownerImg} 
+                                    alt="Profile" 
+                                    className="w-full h-full object-cover" 
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -110,9 +145,11 @@ export default function ProfilePage() {
                     <div className="w-full flex flex-col space-y-4">
                         <div>
                             <p className="text-[12px] text-gray-400 uppercase font-bold">Full Name</p>
-                            <p className="text-[15px] font-semibold text-[#0D162B]">Angela Christopher</p>
+                            {/* 4. Dynamic Name Logic */}
+                            <p className="text-[15px] font-semibold text-[#0D162B]">
+                                {loading ? "Loading..." : (profile?.full_name || "Guest User")}
+                            </p>
                         </div>
-                        {/* Add more info rows here as needed */}
                     </div>
 
                     {/* BLOCKCHAIN ACTION SECTION */}

@@ -7,7 +7,6 @@ import dogImage from "../assets/dog.png";
 import dog1Image from "../assets/dog_1.png";
 import goldenRetriever from "../assets/golden_retriever.png";
 
-
 // --- Interfaces ---
 interface PetListing {
   id: number;
@@ -40,7 +39,7 @@ const mockPet: PetListing = {
   age: "4 Years Old",
   gender: "Female",
   vaccinationStatus: "Yes",
-  description: "This is a loving and playful German Shepherd who enjoys outdoor activities...",
+  description: "This is a loving and playful German Shepherd who enjoys outdoor activities and socializing with people. She is well-trained, obedient, and gets along well with children and other pets. Looking for a caring temporary home where she can be loved and well taken care of.",
   location: "Lagos, Nigeria",
   images: [dogImage, dog1Image, goldenRetriever, dogImage],
   owner: {
@@ -76,11 +75,8 @@ const FlagIcon = () => (
   </svg>
 );
 
-// --- Main Page Component ---
 export default function PetListingDetailsPage() {
   const navigate = useNavigate();
-
-  // Initialising custom hook 
   const { mintPet, isMinting, isMinted, mintError } = usePetPassport();
 
   const [activeImage, setActiveImage] = useState(0);
@@ -183,7 +179,6 @@ export default function PetListingDetailsPage() {
                 {isInterested ? "Interested ✓" : "Show Interest"}
               </button>
 
-              {/* Blockchain Button */}
               <button className="pld-btn pld-btn--dark" onClick={() => mintPet(mockPet)} disabled={isMinting}>
                 {isMinting ? (
                   <>
@@ -195,10 +190,10 @@ export default function PetListingDetailsPage() {
                 )}
               </button>
 
-              {/* Feedback Messages */}
-              <div style = {{ width: '100%' }}></div>
+              {/* Feedback Messages inside CTA container */}
+              <div style={{ width: '100%' }}>
                 {isMinted && (
-                  <p style={{ color: '#22C55E', fontSize: '14px', marginTop: '10px', fontWeight: 'bold' }} >
+                  <p style={{ color: '#22C55E', fontSize: '14px', marginTop: '10px', fontWeight: 'bold' }}>
                     Pet Passport minted successfully! 
                   </p>
                 )}
@@ -212,7 +207,7 @@ export default function PetListingDetailsPage() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs Section */}
         <div className="pld-tabs">
           <button className={`pld-tab ${activeTab === "owner" ? "pld-tab--active" : ""}`} onClick={() => setActiveTab("owner")}>Owner Info</button>
           <button className={`pld-tab ${activeTab === "description" ? "pld-tab--active" : ""}`} onClick={() => setActiveTab("description")}>Description</button>
@@ -222,8 +217,14 @@ export default function PetListingDetailsPage() {
           <div className="pld-owner">
             <img src={mockPet.owner.avatar} className="pld-owner__avatar" alt="Owner" />
             <div className="pld-owner__fields">
-              <div className="pld-owner__field"><span className="pld-owner__field-label">Full Name</span><span className="pld-owner__field-value">{mockPet.owner.name}</span></div>
-              <div className="pld-owner__field"><span className="pld-owner__field-label">Location</span><span className="pld-owner__field-value">{mockPet.owner.location}</span></div>
+              <div className="pld-owner__field">
+                <span className="pld-owner__field-label">Full Name</span>
+                <span className="pld-owner__field-value">{mockPet.owner.name}</span>
+              </div>
+              <div className="pld-owner__field">
+                <span className="pld-owner__field-label">Location</span>
+                <span className="pld-owner__field-value">{mockPet.owner.location}</span>
+              </div>
             </div>
             <button className="pld-btn pld-btn--outline" style={{width: 'auto'}}><FlagIcon /> Report</button>
           </div>
