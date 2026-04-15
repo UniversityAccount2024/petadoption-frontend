@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import dogImage from "../assets/dog.png";
 import dog1Image from "../assets/dog_1.png";
 import goldenRetriever from "../assets/golden_retriever.png";
+import { useWriteContract } from 'wagmi';
+import petAdoptionABI from '../contract/PetAdoptionABI.json';
+
+// Contact Address from remix so pet information can link to blockchain
+const CONTRACT_ADDRESS = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B";
 
 
 interface PetListing {
