@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { House, Eye, List, Heart, Bell, ChevronDown } from "lucide-react";
 import logo from "../../assets/logo.svg";
-import owner from "../../assets/owner.png";
 
 const navLinks = [
   { label: "Home", path: "/home", icon: House },
@@ -75,7 +74,7 @@ export function Navbar() {
           className="flex items-center gap-3 ml-2 cursor-pointer group hover:opacity-80 transition-all"
         >
           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-[#E84D2A]/30">
-            <img src={owner} alt="User Avatar" className="w-full h-full object-cover" />
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=PetAd" />
           </div>
           <div className="hidden sm:block">
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Good Morning!</p>

@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAccount } from 'wagmi'; // Added this hook
+import { useAccount } from 'wagmi'; 
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { supabase } from "../api/supabase";
+import { profileService } from "../api/profileService"
 
-import ownerImg from "../assets/owner.png";
 import dogImg from "../assets/dog.png";
 import { AdoptionDetailsModal } from "../components/ui/AdoptionDetailsModal";
 import { ListingDetailsModal } from "../components/ui/ListingDetailsModal";
 
-// --- 1. Interfaces & Mock Data (Outside the component) ---
+// --- 1. Interfaces & Mock Data ---
 interface AdoptionRecordItem {
     id: string;
     petImage: string;
@@ -43,7 +43,7 @@ function getAdoptionDetails(id: string) {
     return {
         pet: { imageUrl: r.petImage, name: r.petName, petType: "Dog", breed: "German Shepard", age: "4 Years Old", gender: "Female", vaccinated: "Yes" },
         receipt: { dateReceived: r.dateReceived, receiptAddress: "Fuse Road, Lagos Nigeria", petCondition: "Good" },
-        lister: { imageUrl: ownerImg, fullName: "Angela Christopher", location: "Lagos, Nigeria", profileId: "lister-1" },
+        lister: { imageUrl: "", fullName: "Lister Name", location: "Lagos, Nigeria", profileId: "lister-1" },
     };
 }
 
@@ -53,28 +53,36 @@ function getListingDetails(id: string) {
     return {
         pet: { imageUrl: r.petImage, name: r.petName, petType: "Dog", breed: "German Shepard", age: "4 Years Old", gender: "Female", vaccinated: "Yes" },
         transfer: { dateTransferred: r.dateTransferred, transferAddress: "Fuse Road, Lagos Nigeria" },
-        adopter: { imageUrl: ownerImg, fullName: "Angela Christopher", location: "Lagos, Nigeria", profileId: "adopter-1" },
+        adopter: { imageUrl: "", fullName: "Adopter Name", location: "Lagos, Nigeria", profileId: "adopter-1" },
     };
 }
 
 // --- 2. The Main Component ---
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const { isConnected, address } = useAccount(); // address gives connected wallet ID
+    const { isConnected, address } = useAccount();
 
-    // 1. Fixed State Declaration
+    // Profile and Loading State
     const [profile, setProfile] = useState<{full_name: string, avatar_url: string} | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // 2. Add the Fetch Logic
+    // Tab & Modal State
+    const [activeTab, setActiveTab] = useState<"adoption" | "listing">("adoption");
+    const [adoptionDetailsId, setAdoptionDetailsId] = useState<string | null>(null);
+    const [listingDetailsId, setListingDetailsId] = useState<string | null>(null);
+
+    // Fetch profile on mount or address change
     useEffect(() => {
         async function fetchProfile() {
+            if (!address) {
+                setLoading(false);
+                return;
+            }
             try {
-                // fetch profile from Supabase. 
                 const { data, error } = await supabase
                     .from('profiles')
                     .select('full_name, avatar_url')
-                    .eq('id', address)
+                    .eq('wallet_address', address)
                     .single(); 
 
                 if (data) setProfile(data);
@@ -86,26 +94,38 @@ export default function ProfilePage() {
         }
 
         fetchProfile();
-    }, [address]); // Refetch if the wallet address changes
+    }, [address]);
 
-    // Tab & Modal State
-    const [activeTab, setActiveTab] = useState<"adoption" | "listing">("adoption");
-    const [adoptionDetailsId, setAdoptionDetailsId] = useState<string | null>(null);
-    const [listingDetailsId, setListingDetailsId] = useState<string | null>(null);
-
-    const adoptionDetails = adoptionDetailsId ? getAdoptionDetails(adoptionDetailsId) : null;
-    const listingDetails = listingDetailsId ? getListingDetails(listingDetailsId) : null;
-
-    const handleListerClick = (profileId: string) => {
+    const handleListerClick = () => {
         setAdoptionDetailsId(null);
-        // navigate(`/profile/${profileId}`); // You can use this later for other users
         navigate(`/profile`); 
     };
 
-    const handleAdopterClick = (profileId: string) => {
+    const handleAdopterClick = () => {
         setListingDetailsId(null);
         navigate("/profile");
     };
+
+    // Upload image function
+        const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !address) return;
+
+        try {
+            setLoading(true);
+            const publicUrl = await profileService.uploadAvatar(address, file);
+            
+            setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : { full_name: "New User", avatar_url: publicUrl });
+            alert("Profile picture updated!");
+        } catch (error: any) {
+            alert(error.message || "Failed to upload image");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const adoptionDetails = adoptionDetailsId ? getAdoptionDetails(adoptionDetailsId) : null;
+    const listingDetails = listingDetailsId ? getListingDetails(listingDetailsId) : null;
 
     return (
         <div className="min-h-screen flex flex-col pb-12 bg-gray-50">
@@ -119,17 +139,30 @@ export default function ProfilePage() {
                 
                 {/* Profile Card Sidebar */}
                 <div className="w-full md:w-[340px] lg:w-[380px] border border-gray-200 rounded-2xl p-6 bg-white shadow-sm h-fit">
-                    <div className="relative mb-4 flex justify-center">
-                        <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gray-100">
-                            {/* Image Logic */}
+                    
+                    {/* Image Section with Upload Hover */}
+                    <div className="relative mb-4 flex justify-center group">
+                        <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gray-200 relative">
                             {loading ? (
-                                <div className="w-full h-full animate-pulse bg-gray-200" />
+                                <div className="w-full h-full animate-pulse bg-gray-300" />
                             ) : (
-                                <img 
-                                    src={profile?.avatar_url || ownerImg} 
-                                    alt="Profile" 
-                                    className="w-full h-full object-cover" 
-                                />
+                                <>
+                                    <img 
+                                        src={profile?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=PetAd"} 
+                                        alt="Profile" 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                    <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                        <span className="text-white text-xs font-bold">Change Photo</span>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={handleImageUpload}
+                                            disabled={loading}
+                                        />
+                                    </label>
+                                </>
                             )}
                         </div>
                     </div>
@@ -145,14 +178,13 @@ export default function ProfilePage() {
                     <div className="w-full flex flex-col space-y-4">
                         <div>
                             <p className="text-[12px] text-gray-400 uppercase font-bold">Full Name</p>
-                            {/* 4. Dynamic Name Logic */}
                             <p className="text-[15px] font-semibold text-[#0D162B]">
                                 {loading ? "Loading..." : (profile?.full_name || "Guest User")}
                             </p>
                         </div>
                     </div>
 
-                    {/* BLOCKCHAIN ACTION SECTION */}
+                    {/* Blockchain Action */}
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         {isConnected ? (
                             <button 
@@ -170,7 +202,7 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Main Content Area (Tabs & Records) */}
+                {/* Main Content Area */}
                 <div className="flex-1 border border-gray-200 rounded-2xl bg-white overflow-hidden flex flex-col shadow-sm">
                     <div className="flex bg-white border-b border-gray-100">
                         <button
@@ -198,8 +230,18 @@ export default function ProfilePage() {
             </div>
 
             {/* Modals */}
-            <AdoptionDetailsModal isOpen={!!adoptionDetailsId} onClose={() => setAdoptionDetailsId(null)} data={adoptionDetails} onListerClick={handleListerClick} />
-            <ListingDetailsModal isOpen={!!listingDetailsId} onClose={() => setListingDetailsId(null)} data={listingDetails} onAdopterClick={handleAdopterClick} />
+            <AdoptionDetailsModal 
+                isOpen={!!adoptionDetailsId} 
+                onClose={() => setAdoptionDetailsId(null)} 
+                data={adoptionDetails} 
+                onListerClick={handleListerClick} 
+            />
+            <ListingDetailsModal 
+                isOpen={!!listingDetailsId} 
+                onClose={() => setListingDetailsId(null)} 
+                data={listingDetails} 
+                onAdopterClick={handleAdopterClick} 
+            />
         </div>
     );
 }
