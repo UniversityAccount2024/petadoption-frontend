@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useWriteContract } from 'wagmi';
-import petAdoptionABI from '../contract/PetAdoptionABI.json';
+import { usePetPassport } from "../hooks/usePetPassport";
 
 // Assets
 import dogImage from "../assets/dog.png";
 import dog1Image from "../assets/dog_1.png";
 import goldenRetriever from "../assets/golden_retriever.png";
 
-// Configuration
-const CONTRACT_ADDRESS = import.meta.env.VITE_PET_ADOPTION_ADDRESS;
 
 // --- Interfaces ---
 interface PetListing {
@@ -82,7 +79,9 @@ const FlagIcon = () => (
 // --- Main Page Component ---
 export default function PetListingDetailsPage() {
   const navigate = useNavigate();
-  const { writeContract, isPending } = useWriteContract();
+
+  // Initialising custom hook 
+  const { mintPet, isMinting, isMinted, mintError } = usePetPassport();
 
   const [activeImage, setActiveImage] = useState(0);
   const [activeTab, setActiveTab] = useState<"owner" | "description">("owner");
@@ -90,24 +89,6 @@ export default function PetListingDetailsPage() {
   const [isInterested, setIsInterested] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [intLoading, setIntLoading] = useState(false);
-
-  // --- Blockchain Logic ---
-  const mintPetPassport = () => {
-    writeContract({
-      address: CONTRACT_ADDRESS as `0x${string}`,
-      abi: petAdoptionABI,
-      functionName: 'registerPet',
-      args: [
-        mockPet.name,
-        mockPet.breed,
-        mockPet.location,
-        mockPet.gender === "Female" ? 1 : 0, // Enum: Male=0, Female=1
-        mockPet.adoptionType === "Absolute Adoption" ? 1 : 0, // Enum: Temp=0, Absolute=1
-        4, // Age
-        "ipfs://placeholder-metadata-uri" // Link to full desc/images
-      ],
-    });
-  };
 
   const handleFav = async () => {
     setFavLoading(true);
@@ -203,9 +184,30 @@ export default function PetListingDetailsPage() {
               </button>
 
               {/* Blockchain Button */}
-              <button className="pld-btn pld-btn--dark" onClick={mintPetPassport} disabled={isPending}>
-                {isPending ? <span className="pld-spinner" /> : "🚀 Mint Pet Passport"}
+              <button className="pld-btn pld-btn--dark" onClick={() => mintPet(mockPet)} disabled={isMinting}>
+                {isMinting ? (
+                  <>
+                    <span className="pld-spinner" />
+                    <span>Minting . . . </span>
+                  </>
+                ) : (
+                  "Mint Pet Passport"
+                )}
               </button>
+
+              {/* Feedback Messages */}
+              <div style = {{ width: '100%' }}></div>
+                {isMinted && (
+                  <p style={{ color: '#22C55E', fontSize: '14px', marginTop: '10px', fontWeight: 'bold' }} >
+                    Pet Passport minted successfully! 
+                  </p>
+                )}
+                {mintError && (
+                  <p style={{ color: '#EF4444', fontSize: '14px', marginTop: '10px', fontWeight: 'bold' }}>
+                    Error: {mintError.message.includes("User rejected") ? "Transaction cancelled by user." : "Minting failed."}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
