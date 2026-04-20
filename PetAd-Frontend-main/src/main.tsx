@@ -17,7 +17,7 @@ const config = getDefaultConfig({
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
   chains: [mainnet, sepolia],
   transports: {
-    [mainnet.id]: http(),
+    [mainnet.id]: http('https://cloudflare-eth.com'),
     [sepolia.id]: http(),
   },
 });
