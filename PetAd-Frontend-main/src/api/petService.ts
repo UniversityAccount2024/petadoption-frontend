@@ -69,4 +69,28 @@ export const petService = {
         if (error) throw error;
         return data;
     },
+
+    // UPDATE an existing pet
+    async updatePet(id: string, updates: any) {
+        const { data, error } = await supabase
+            .from('pets')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    // DELETE pet from database
+    async deletePet(id: string) {
+        const { error } = await supabase
+            .from('pets')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        return true;
+    },
 };
