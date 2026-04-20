@@ -1,71 +1,14 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom"; 
+import { useAccount } from 'wagmi'; 
 import { usePetPassport } from "../hooks/usePetPassport";
-
-// Assets
-import dogImage from "../assets/dog.png";
-import dog1Image from "../assets/dog_1.png";
-import goldenRetriever from "../assets/golden_retriever.png";
-
-// --- Interfaces ---
-interface PetListing {
-  id: number;
-  name: string;
-  adoptionType: "Temporary Adoption" | "Absolute Adoption";
-  petType: string;
-  breed: string;
-  age: string;
-  gender: string;
-  vaccinationStatus: string;
-  description: string;
-  location: string;
-  images: string[];
-  owner: {
-    name: string;
-    avatar: string;
-    email: string;
-    phone: string;
-    location: string;
-  };
-}
-
-// --- Mock Data ---
-const mockPet: PetListing = {
-  id: 1,
-  name: "Pet For Adoption",
-  adoptionType: "Temporary Adoption",
-  petType: "Dog",
-  breed: "German Shepard",
-  age: "4 Years Old",
-  gender: "Female",
-  vaccinationStatus: "Yes",
-  description: "This is a loving and playful German Shepherd who enjoys outdoor activities and socializing with people. She is well-trained, obedient, and gets along well with children and other pets. Looking for a caring temporary home where she can be loved and well taken care of.",
-  location: "Lagos, Nigeria",
-  images: [dogImage, dog1Image, goldenRetriever, dogImage],
-  owner: {
-    name: "Angela Christoper",
-    avatar: "https://i.pravatar.cc/150?img=47",
-    email: "angela@example.com",
-    phone: "+234...",
-    location: "Lagos, Nigeria",
-  },
-};
-
-const relatedListings = [
-  { id: 2, name: "Pet For Adoption", breed: "Dog, German Shepard", location: "Mainland, Lagos", image: dogImage },
-  { id: 3, name: "Pet For Adoption", breed: "Dog, German Shepard", location: "Mainland, Lagos", image: dog1Image },
-];
+import { petService } from "../api/petService";
+import { favoritesService } from "../api/favouritesService";
 
 // --- Sub-Components (Icons) ---
 const HeartIcon = ({ filled }: { filled: boolean }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? "#E84D2A" : "none"} stroke={filled ? "#E84D2A" : "#666"} strokeWidth="2">
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-  </svg>
-);
-
-const LocationIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
   </svg>
 );
 
@@ -76,9 +19,14 @@ const FlagIcon = () => (
 );
 
 export default function PetListingDetailsPage() {
+  const { id } = useParams(); 
+  const { address } = useAccount();
   const navigate = useNavigate();
   const { mintPet, isMinting, isMinted, mintError } = usePetPassport();
 
+  // --- State ---
+  const [pet, setPet] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [activeTab, setActiveTab] = useState<"owner" | "description">("owner");
   const [isFav, setIsFav] = useState(false);
@@ -86,19 +34,52 @@ export default function PetListingDetailsPage() {
   const [favLoading, setFavLoading] = useState(false);
   const [intLoading, setIntLoading] = useState(false);
 
+  // Load Pet Data from Supabase
+  useEffect(() => {
+    async function loadPet() {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const data = await petService.getPetId(id);
+        setPet(data);
+        
+        if (address) {
+        }
+      } catch (err) {
+        console.error("Pet not found", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPet();
+  }, [id, address]);
+
+  // Handle Favorite Logic
   const handleFav = async () => {
-    setFavLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-    setIsFav(f => !f);
-    setFavLoading(false);
+    if (!address || !id) {
+        alert("Please connect your wallet first");
+        return;
+    }
+    try {
+        setFavLoading(true);
+        const nowFav = await favoritesService.toggleFavorite(address, id);
+        setIsFav(nowFav);
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setFavLoading(false);
+    }
   };
 
   const handleInterest = async () => {
     setIntLoading(true);
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 500)); // Mocking interest API
     setIsInterested(f => !f);
     setIntLoading(false);
   };
+
+  if (loading) return <div className="flex justify-center py-20 font-bold text-gray-400">Loading Pet Details...</div>;
+  if (!pet) return <div className="flex justify-center py-20 font-bold text-red-500">Pet listing not found.</div>;
 
   return (
     <div className="pld">
@@ -117,7 +98,7 @@ export default function PetListingDetailsPage() {
         .pld-gallery__main img { width: 100%; height: 100%; object-fit: cover; }
         .pld-details { display: flex; flex-direction: column; gap: 16px; }
         .pld-details__name { font-size: 24px; font-weight: 800; color: #0D162B; }
-        .pld-details__badge { padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; background: #FFF2E5; color: #E84D2A; border: 1px solid #E84D2A; width: fit-content; }
+        .pld-details__badge { padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; background: #FFF2E5; color: #E84D2A; border: 1px solid #E84D2A; width: fit-content; text-transform: capitalize; }
         .pld-details__table { border: 1px solid #e8e8e8; border-radius: 10px; overflow: hidden; }
         .pld-details__row { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #f0f0f0; }
         .pld-details__cell { padding: 12px 16px; font-size: 14px; }
@@ -143,29 +124,29 @@ export default function PetListingDetailsPage() {
 
       <div className="pld-container">
         <div className="pld-top">
-          {/* Gallery */}
+          {/* Gallery - Now using dynamic images from DB */}
           <div className="pld-gallery">
             <div className="pld-gallery__thumbs">
-              {mockPet.images.map((img, i) => (
+               {/* We assume image_url is a single string or array; mapping accordingly */}
+               {[pet.image_url].map((img, i) => (
                 <div key={i} className={`pld-gallery__thumb ${i === activeImage ? "pld-gallery__thumb--active" : ""}`} onClick={() => setActiveImage(i)}>
-                  <img src={img} alt="Thumb" />
+                  <img src={img || "https://placehold.co/100"} alt="Thumb" />
                 </div>
               ))}
             </div>
             <div className="pld-gallery__main">
-              <img src={mockPet.images[activeImage]} alt="Main" />
+              <img src={pet.image_url || "https://placehold.co/600"} alt="Main" />
             </div>
           </div>
 
-          {/* Details */}
           <div className="pld-details">
-            <h1 className="pld-details__name">{mockPet.name}</h1>
-            <span className="pld-details__badge">{mockPet.adoptionType}</span>
+            <h1 className="pld-details__name">{pet.name}</h1>
+            <span className="pld-details__badge">{pet.category} Adoption</span>
 
             <div className="pld-details__table">
-              <div className="pld-details__row"><div className="pld-details__cell">Breed</div><div className="pld-details__cell">{mockPet.breed}</div></div>
-              <div className="pld-details__row"><div className="pld-details__cell">Age</div><div className="pld-details__cell">{mockPet.age}</div></div>
-              <div className="pld-details__row"><div className="pld-details__cell">Gender</div><div className="pld-details__cell">{mockPet.gender}</div></div>
+              <div className="pld-details__row"><div className="pld-details__cell">Breed</div><div className="pld-details__cell">{pet.breed}</div></div>
+              <div className="pld-details__row"><div className="pld-details__cell">Age</div><div className="pld-details__cell">{pet.age}</div></div>
+              <div className="pld-details__row"><div className="pld-details__cell">Gender</div><div className="pld-details__cell">{pet.gender || 'Not specified'}</div></div>
             </div>
 
             <div className="pld-cta">
@@ -179,7 +160,7 @@ export default function PetListingDetailsPage() {
                 {isInterested ? "Interested ✓" : "Show Interest"}
               </button>
 
-              <button className="pld-btn pld-btn--dark" onClick={() => mintPet(mockPet)} disabled={isMinting}>
+              <button className="pld-btn pld-btn--dark" onClick={() => mintPet(pet)} disabled={isMinting}>
                 {isMinting ? (
                   <>
                     <span className="pld-spinner" />
@@ -189,25 +170,10 @@ export default function PetListingDetailsPage() {
                   "Mint Pet Passport"
                 )}
               </button>
-
-              {/* Feedback Messages inside CTA container */}
-              <div style={{ width: '100%' }}>
-                {isMinted && (
-                  <p style={{ color: '#22C55E', fontSize: '14px', marginTop: '10px', fontWeight: 'bold' }}>
-                    Pet Passport minted successfully! 
-                  </p>
-                )}
-                {mintError && (
-                  <p style={{ color: '#EF4444', fontSize: '14px', marginTop: '10px', fontWeight: 'bold' }}>
-                    Error: {mintError.message.includes("User rejected") ? "Transaction cancelled by user." : "Minting failed."}
-                  </p>
-                )}
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Tabs Section */}
         <div className="pld-tabs">
           <button className={`pld-tab ${activeTab === "owner" ? "pld-tab--active" : ""}`} onClick={() => setActiveTab("owner")}>Owner Info</button>
           <button className={`pld-tab ${activeTab === "description" ? "pld-tab--active" : ""}`} onClick={() => setActiveTab("description")}>Description</button>
@@ -215,21 +181,21 @@ export default function PetListingDetailsPage() {
 
         {activeTab === "owner" ? (
           <div className="pld-owner">
-            <img src={mockPet.owner.avatar} className="pld-owner__avatar" alt="Owner" />
+            <img src={pet.profiles?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=owner"} className="pld-owner__avatar" alt="Owner" />
             <div className="pld-owner__fields">
               <div className="pld-owner__field">
                 <span className="pld-owner__field-label">Full Name</span>
-                <span className="pld-owner__field-value">{mockPet.owner.name}</span>
+                <span className="pld-owner__field-value">{pet.profiles?.full_name || "Guest User"}</span>
               </div>
               <div className="pld-owner__field">
                 <span className="pld-owner__field-label">Location</span>
-                <span className="pld-owner__field-value">{mockPet.owner.location}</span>
+                <span className="pld-owner__field-value">{pet.location}</span>
               </div>
             </div>
             <button className="pld-btn pld-btn--outline" style={{width: 'auto'}}><FlagIcon /> Report</button>
           </div>
         ) : (
-          <p style={{lineHeight: 1.6}}>{mockPet.description}</p>
+          <p style={{lineHeight: 1.6}}>{pet.description || "No description provided."}</p>
         )}
       </div>
     </div>
