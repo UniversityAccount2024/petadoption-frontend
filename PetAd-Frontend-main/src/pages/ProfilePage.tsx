@@ -61,9 +61,12 @@ export default function ProfilePage() {
     const navigate = useNavigate();
     const { isConnected, address, status } = useAccount();
 
+
     // Profile and Loading State
     const [profile, setProfile] = useState<{full_name: string, avatar_url: string} | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [nameInput, setNameInput] = useState("");
 
     // Tab & Modal State
     const [activeTab, setActiveTab] = useState<"adoption" | "listing">("adoption");
@@ -72,42 +75,48 @@ export default function ProfilePage() {
 
     // Fetch profile on mount or address change
 
-        useEffect(() => {
-        async function loadProfile() {
-            if (!isConnected || !address) {
-            setProfile(null);
-            setLoading(false);
-            return;
-            }
+    useEffect(() => {
+    if (profile?.full_name) {
+        setNameInput(profile.full_name);
+    }
+}, [profile]);
 
-            try {
-            setLoading(true);
-            const data = await profileService.getOrCreateProfile(address);
-            setProfile(data);
-            } catch (err) {
-            console.error('Error loading profile:', err);
-            } finally {
-            setLoading(false);
-            }
+    useEffect(() => {
+    async function loadProfile() {
+        if (!isConnected || !address) {
+        setProfile(null);
+        setLoading(false);
+        return;
         }
-
-        loadProfile();
-        }, [address, isConnected]);
-
-        const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !address) return;
 
         try {
-            setLoading(true);
-            const avatar_url = await profileService.uploadAvatar(address, file);
-            setProfile((prev) => prev ? { ...prev, avatar_url } : null);
-        } catch (error: any) {
-            alert(error.message || 'Failed to upload image');
+        setLoading(true);
+        const data = await profileService.getOrCreateProfile(address);
+        setProfile(data);
+        } catch (err) {
+        console.error('Error loading profile:', err);
         } finally {
-            setLoading(false);
+        setLoading(false);
         }
-        };
+    }
+
+    loadProfile();
+    }, [address, isConnected]);
+
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !address) return;
+
+    try {
+        setLoading(true);
+        const avatar_url = await profileService.uploadAvatar(address, file);
+        setProfile((prev) => prev ? { ...prev, avatar_url } : null);
+    } catch (error: any) {
+        alert(error.message || 'Failed to upload image');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleListerClick = () => {
         setAdoptionDetailsId(null);
@@ -119,6 +128,27 @@ export default function ProfilePage() {
         navigate("/profile");
     };
 
+
+    const handleSaveName = async () => {
+        if (!address || !nameInput.trim()) return;
+
+        try {
+            setLoading(true);
+            await profileService.updateName(address, nameInput.trim());
+
+            setProfile((prev) =>
+                prev
+                    ? { ...prev, full_name: nameInput.trim() }
+                    : { full_name: nameInput.trim(), avatar_url: "" }
+            );
+
+            setIsEditingName(false);
+        } catch (error: any) {
+            alert(error.message || "Failed to update name");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const adoptionDetails = adoptionDetailsId ? getAdoptionDetails(adoptionDetailsId) : null;
     const listingDetails = listingDetailsId ? getListingDetails(listingDetailsId) : null;
@@ -171,14 +201,54 @@ export default function ProfilePage() {
                     </div>
 
                     {/* User Details */}
-                    <div className="w-full flex flex-col space-y-4">
-                        <div>
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
                             <p className="text-[12px] text-gray-400 uppercase font-bold">Full Name</p>
-                            <p className="text-[15px] font-semibold text-[#0D162B]">
-                                {loading ? "Loading..." : (profile?.full_name || "Guest User")}
-                            </p>
+                            {!isEditingName && (
+                                <button 
+                                    onClick={() => setIsEditingName(true)}
+                                    className="text-[11px] text-blue-500 hover:underline font-bold"
+                                >
+                                    Edit
+                                </button>
+                            )}
                         </div>
-                    </div>
+
+                        {isEditingName ? (
+                            <div className="flex flex-col gap-2">
+                                <input
+                                    type="text"
+                                    value={nameInput}
+                                    onChange={(e) => setNameInput(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Enter full name"
+                                    autoFocus
+                                />
+                            <div className="flex gap-2">
+                <button
+                    onClick={handleSaveName}
+                    disabled={loading}
+                    className="flex-1 bg-green-500 text-white text-[12px] py-1.5 rounded-md font-bold hover:bg-green-600"
+                >
+                    {loading ? "Saving..." : "Save"}
+                </button>
+                <button
+                    onClick={() => {
+                        setIsEditingName(false);
+                        setNameInput(profile?.full_name || "Guest User");
+                    }}
+                    className="flex-1 bg-gray-100 text-gray-600 text-[12px] py-1.5 rounded-md font-bold hover:bg-gray-200"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    ) : (
+        <p className="text-[15px] font-semibold text-[#0D162B]">
+            {loading ? "Loading..." : (profile?.full_name || "Guest User")}
+        </p>
+    )}
+</div>
 
                     {/* Blockchain Action */}
                     <div className="mt-8 pt-6 border-t border-gray-100">

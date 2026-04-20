@@ -41,5 +41,22 @@ export const profileService = {
 
     if (updateError) throw updateError;
     return data.publicUrl;
+    
   },
+
+    async updateName(address: string, full_name: string) {
+        const wallet = address.toLowerCase();
+
+        const { error } = await supabase
+        .from("profiles")
+        .upsert(
+            {
+            wallet_address: wallet,
+            full_name,
+            },
+            { onConflict: "wallet_address" }
+        );
+
+        if (error) throw error;
+    }
 };
