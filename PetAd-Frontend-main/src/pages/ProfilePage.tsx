@@ -112,11 +112,13 @@ export default function ProfilePage() {
         setLoading(true);
         const avatar_url = await profileService.uploadAvatar(address, file);
         setProfile((prev) => prev ? { ...prev, avatar_url } : null);
+        window.dispatchEvent(new Event("profile-updated"));
     } catch (error: any) {
         alert(error.message || 'Failed to upload image');
     } finally {
         setLoading(false);
     }
+
 };
 
     const handleListerClick = () => {

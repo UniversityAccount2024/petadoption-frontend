@@ -48,6 +48,15 @@ export function Navbar() {
     }
 
     loadNavbarProfile();
+
+    window.addEventListener("storage", loadNavbarProfile);
+    // Listening for custom "profile-updated" event (for same-tab updates)
+    window.addEventListener("profile-updated", loadNavbarProfile);
+
+    return () => {
+    window.removeEventListener("storage", loadNavbarProfile);
+    window.removeEventListener("profile-updated", loadNavbarProfile);
+    };
   }, []);
 
   return (
