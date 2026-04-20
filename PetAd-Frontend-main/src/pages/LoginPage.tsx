@@ -1,5 +1,5 @@
 import { AuthLayout, SignInForm } from "../components/auth";
-import signInHero from "../assets/signinpet.png";
+import signInHero from "../assets/signinpet.jpg";
 
 export default function LoginPage() {
     return (

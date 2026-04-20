@@ -4,9 +4,9 @@ import { FormSelect } from "../components/ui/formSelect";
 import { InterestPetCard, type Pet } from "../components/ui/InterestPetCard";
 import { RatingModal } from "../components/ui/RatingModal";
 
-import catImg from "../assets/cat.png";
-import dogImg from "../assets/dog.png";
-import parrotImg from "../assets/parrot.png";
+const catImg = "https://placehold.co/600x400?text=Cat";
+const dogImg = "https://placehold.co/600x400?text=Dog";
+const parrotImg = "https://placehold.co/600x400?text=Parrot";
 
 const MOCK_PETS: Pet[] = [
   {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import petsHero from "../../assets/pet.png";
+const petsHero = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?q=80&w=1000&auto=format&fit=crop";
 import logo from "../../assets/logo.svg"
 
 interface AuthLayoutProps {

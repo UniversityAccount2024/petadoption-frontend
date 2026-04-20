@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { profileService } from "../api/profileService"
 
-import dogImg from "../assets/dog.png";
+const dogImg = "https://placedog.net/600/400?id=1";
 import { AdoptionDetailsModal } from "../components/ui/AdoptionDetailsModal";
 import { ListingDetailsModal } from "../components/ui/ListingDetailsModal";
 
@@ -91,6 +91,7 @@ export default function ProfilePage() {
 
         try {
         setLoading(true);
+        localStorage.setItem("walletAddress", address.toLowerCase());
         const data = await profileService.getOrCreateProfile(address);
         setProfile(data);
         } catch (err) {
@@ -141,6 +142,8 @@ export default function ProfilePage() {
                     ? { ...prev, full_name: nameInput.trim() }
                     : { full_name: nameInput.trim(), avatar_url: "" }
             );
+
+            window.dispatchEvent(new Event("storage"));
 
             setIsEditingName(false);
         } catch (error: any) {

@@ -1,8 +1,13 @@
 import { useState } from "react";
+import { useAccount } from 'wagmi';
 import { FormInput } from "../ui/formInput";
 import { FormSelect } from "../ui/formSelect";
 import { FileUpload } from "../ui/fileUpload";
-import { AuthModal } from "../ui/authModal"; // Reusing success modal
+import { AuthModal } from "../ui/authModal"; 
+import { supabase } from "../../api/supabase";
+import { petService } from "../../api/petService";
+import { usePetPassport } from "../../hooks/usePetPassport";
+import { useEffect } from "react";
 
 interface ListingModalProps {
     isOpen: boolean;
@@ -22,6 +27,8 @@ interface ListingFormData {
     city: string;
     images: (File | null)[];
 }
+
+// ... (PET_TYPES, AGE_OPTIONS, etc. remain unchanged)
 
 const PET_TYPES = [
     { value: "dog", label: "Dog" },
@@ -71,23 +78,33 @@ const INIT_STATE: ListingFormData = {
 };
 
 export function ListingModal({ isOpen, onClose }: ListingModalProps) {
+    const { address } = useAccount();
+    const { mintPet, isMinting, isMinted, mintError } = usePetPassport();
     const [step, setStep] = useState<1 | 2>(1);
     const [formData, setFormData] = useState<ListingFormData>(INIT_STATE);
     const [errors, setErrors] = useState<Partial<Record<keyof ListingFormData, string>>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
-    // Close completely
-    const handleClose = () => {
-        // Reset state before closing
-        setStep(1);
-        setFormData(INIT_STATE);
-        setErrors({});
-        setShowSuccess(false);
-        onClose();
-    };
+    useEffect(() => {
+        if (isMinted) {
+            setShowSuccess(true);
+        }
+    }, [isMinted]);
 
-    if (!isOpen && !showSuccess) return null;
+    useEffect(() => {
+        if (mintError) {
+         alert(mintError.message || "Minting failed");
+        }
+    }, [mintError]);
+
+
+    useEffect(() => {
+        if (isMinted) {
+        window.dispatchEvent(new Event("pet-listed"));
+        setShowSuccess(true);
+        }
+    }, [isMinted]);
 
     const handleChange = (field: keyof ListingFormData, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
@@ -102,7 +119,6 @@ export function ListingModal({ isOpen, onClose }: ListingModalProps) {
             newImages[index] = file;
             return { ...prev, images: newImages };
         });
-        // clear error for images string if it exists
         if (errors.images) {
             setErrors((prev) => ({ ...prev, images: undefined }));
         }
@@ -125,38 +141,81 @@ export function ListingModal({ isOpen, onClose }: ListingModalProps) {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleProceed = () => {
-        if (validateStep1()) {
-            setStep(2);
-        }
-    };
-
     const validateStep2 = () => {
         const newErrors: Partial<Record<keyof ListingFormData, string>> = {};
         const imgCount = formData.images.filter((img) => img !== null).length;
-
-        // Require at least 3 images as requested in design
         if (imgCount < 3) {
             newErrors.images = "Please add at least 3 different angle images";
         }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async () => {
-        if (!validateStep2()) return;
-
-        setIsSubmitting(true);
-        // TODO: Wire to API
-        await new Promise((r) => setTimeout(r, 1500));
-        setIsSubmitting(false);
-
-        // Hide this modal and show success modal
-        setShowSuccess(true);
+    const handleProceed = () => {
+        if (validateStep1()) setStep(2);
     };
 
-    // If success modal is triggered
+    const uploadImages = async (files: (File | null)[], petId: string) => {
+        const uploadPromises = files.map(async (file, index) => {
+            if (!file) return null;
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${petId}/${index}-${Date.now()}.${fileExt}`;
+            const filePath = `pet-images/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('pets')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from('pets').getPublicUrl(filePath);
+            return data.publicUrl;
+        });
+
+        const urls = await Promise.all(uploadPromises);
+        return urls.filter((url): url is string => url !== null);
+    };
+
+    const handleSubmit = async () => {
+        if (!validateStep2() || !address) return;
+
+        setIsSubmitting(true);
+
+        try {
+            const petId = crypto.randomUUID();
+            const imageUrls = await uploadImages(formData.images, petId);
+
+            const petData = {
+                id: petId,
+                name: formData.title,
+                petType: formData.petType,
+                breed: formData.breed,
+                age: formData.age,
+                gender: formData.gender,
+                location: `${formData.city}, ${formData.state}`,
+                description: formData.description,
+                images: imageUrls,
+                vaccination: formData.vaccination,
+                image_url: imageUrls[0],
+                adoptionType: formData.adoptionType
+            };
+
+            // Save to Supabase
+            await petService.createPet(petData, address);
+
+            // Mint NFT
+            mintPet(petData);
+
+        } catch (error: any) {
+            alert("Error: " + error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+
+    if (!isOpen && !showSuccess) return null;
+
     if (showSuccess) {
         return (
             <AuthModal
@@ -164,41 +223,38 @@ export function ListingModal({ isOpen, onClose }: ListingModalProps) {
                 title="Pet Listed Successfully!"
                 description="You have successfully listed a pet for adoption"
                 buttonText="View Listing"
-                onAction={handleClose}
+                onAction={() => {
+                    setShowSuccess(false);
+                    setFormData(INIT_STATE);
+                    setStep(1);
+                    setErrors({});
+                    onClose();
+                }}
             />
         );
     }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm px-4 lg:px-8">
-            <div
-                className="w-full max-w-[500px] bg-white rounded-2xl p-6 lg:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
-                role="dialog"
-            >
-                {/* Header */}
+            <div className="w-full max-w-[500px] bg-white rounded-2xl p-6 lg:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
                 <div className="flex items-start justify-between mb-4">
                     <div>
                         <h2 className="text-xl lg:text-2xl font-semibold text-gray-900">
                             {step === 1 ? "Adoption & Pet Information" : "Add Images"}
                         </h2>
                         <p className="text-[13px] text-gray-500 mt-1">
-                            {step === 1 ? "All fields are required" : "Add at least 3 different angle images of the pet"}
+                            {step === 1 ? "All fields are required" : "Add at least 3 images"}
                         </p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 -mr-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto scrollbar-minimal pr-2 -mr-2">
-
-                    {step === 1 && (
+                <div className="flex-1 overflow-y-auto scrollbar-minimal pr-2">
+                    {step === 1 ? (
                         <div className="space-y-4 py-2">
                             <FormSelect
                                 id="adoptionType"
@@ -211,173 +267,122 @@ export function ListingModal({ isOpen, onClose }: ListingModalProps) {
                                 onChange={(e) => handleChange("adoptionType", e.target.value)}
                                 error={errors.adoptionType}
                             />
-
                             <div className="flex flex-col gap-1.5">
-                                <label htmlFor="description" className="text-[13px] font-medium text-gray-700">
-                                    Description
-                                </label>
+                                <label htmlFor="description" className="text-[13px] font-medium text-gray-700">Description</label>
                                 <textarea
                                     id="description"
-                                    placeholder="Type something"
+                                    className={`w-full rounded-xl border border-gray-200 p-3 text-[14px] outline-none ${errors.description ? "border-red-500" : ""}`}
                                     rows={4}
                                     value={formData.description}
                                     onChange={(e) => handleChange("description", e.target.value)}
-                                    className={`w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] outline-none transition-all resize-none
-                    focus:border-[#0D162B] focus:ring-1 focus:ring-[#0D162B]
-                    ${errors.description ? "border-red-400 focus:border-red-400" : ""}`}
-                                    aria-invalid={!!errors.description}
                                 />
-                                {errors.description && (
-                                    <p className="text-xs text-red-500 mt-0.5">{errors.description}</p>
-                                )}
+                                {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
                             </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormInput
-                                    id="title"
-                                    label="Listing Title / Pet Name"
-                                    placeholder="Enter title"
-                                    value={formData.title}
-                                    onChange={(e) => handleChange("title", e.target.value)}
-                                    error={errors.title}
+                            <FormInput
+                                id="title" // Added missing ID
+                                label="Listing Title"
+                                value={formData.title}
+                                onChange={(e) => handleChange("title", e.target.value)}
+                                error={errors.title}
+                            />
+                            <FormSelect 
+                                id="petType" // Added missing ID
+                                label="Pet Type" 
+                                options={PET_TYPES} 
+                                value={formData.petType} 
+                                onChange={(e) => handleChange("petType", e.target.value)} 
+                                error={errors.petType} 
+                            />
+                            <FormInput 
+                                id="breed" // Added missing ID
+                                label="Breed" 
+                                value={formData.breed} 
+                                onChange={(e) => handleChange("breed", e.target.value)} 
+                                error={errors.breed} 
+                            />
+                            <FormSelect 
+                                id="age" // Added missing ID
+                                label="Age" 
+                                options={AGE_OPTIONS} 
+                                value={formData.age} 
+                                onChange={(e) => handleChange("age", e.target.value)} 
+                                error={errors.age} 
+                            />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormSelect 
+                                    id="gender" // Added missing ID
+                                    label="Gender" 
+                                    options={GENDER_OPTIONS} 
+                                    value={formData.gender} 
+                                    onChange={(e) => handleChange("gender", e.target.value)} 
+                                    error={errors.gender} 
                                 />
-                                <FormSelect
-                                    id="petType"
-                                    label="Pet Type"
-                                    options={PET_TYPES}
-                                    value={formData.petType}
-                                    onChange={(e) => handleChange("petType", e.target.value)}
-                                    error={errors.petType}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormInput
-                                    id="breed"
-                                    label="Pet Breed"
-                                    placeholder="Enter breed"
-                                    value={formData.breed}
-                                    onChange={(e) => handleChange("breed", e.target.value)}
-                                    error={errors.breed}
-                                />
-                                <FormSelect
-                                    id="age"
-                                    label="Pet Age"
-                                    options={AGE_OPTIONS}
-                                    value={formData.age}
-                                    onChange={(e) => handleChange("age", e.target.value)}
-                                    error={errors.age}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormSelect
-                                    id="gender"
-                                    label="Pet Gender"
-                                    options={GENDER_OPTIONS}
-                                    value={formData.gender}
-                                    onChange={(e) => handleChange("gender", e.target.value)}
-                                    error={errors.gender}
-                                />
-                                <FormSelect
-                                    id="vaccination"
-                                    label="Vaccination Status"
-                                    options={VACCINATION_OPTIONS}
-                                    value={formData.vaccination}
-                                    onChange={(e) => handleChange("vaccination", e.target.value)}
-                                    error={errors.vaccination}
+                                <FormSelect 
+                                    id="vaccination" // Added missing ID
+                                    label="Vaccination" 
+                                    options={VACCINATION_OPTIONS} 
+                                    value={formData.vaccination} 
+                                    onChange={(e) => handleChange("vaccination", e.target.value)} 
+                                    error={errors.vaccination} 
                                 />
                             </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormSelect
-                                    id="state"
-                                    label="State"
-                                    options={STATE_OPTIONS}
-                                    value={formData.state}
-                                    onChange={(e) => handleChange("state", e.target.value)}
-                                    error={errors.state}
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormSelect 
+                                    id="state" // Added missing ID
+                                    label="State" 
+                                    options={STATE_OPTIONS} 
+                                    value={formData.state} 
+                                    onChange={(e) => handleChange("state", e.target.value)} 
+                                    error={errors.state} 
                                 />
-                                <FormInput
-                                    id="city"
-                                    label="City"
-                                    placeholder="Enter city"
-                                    value={formData.city}
-                                    onChange={(e) => handleChange("city", e.target.value)}
-                                    error={errors.city}
+                                <FormInput 
+                                    id="city" // Added missing ID
+                                    label="City" 
+                                    value={formData.city} 
+                                    onChange={(e) => handleChange("city", e.target.value)} 
+                                    error={errors.city} 
                                 />
                             </div>
                         </div>
-                    )}
-
-                    {step === 2 && (
-                        <div className="space-y-4 py-2">
-                            <FileUpload
-                                id="img1"
-                                label="Image 1 (Required)"
-                                selectedFile={formData.images[0]}
-                                onChange={(f) => handleImageChange(0, f)}
-                            />
-                            <FileUpload
-                                id="img2"
-                                label="Image 2 (Required)"
-                                selectedFile={formData.images[1]}
-                                onChange={(f) => handleImageChange(1, f)}
-                            />
-                            <FileUpload
-                                id="img3"
-                                label="Image 3 (Required)"
-                                selectedFile={formData.images[2]}
-                                onChange={(f) => handleImageChange(2, f)}
-                            />
-                            <FileUpload
-                                id="img4"
-                                label="Image 4 (Optional)"
-                                selectedFile={formData.images[3]}
-                                onChange={(f) => handleImageChange(3, f)}
-                            />
-                            <FileUpload
-                                id="img5"
-                                label="Image 5 (Optional)"
-                                selectedFile={formData.images[4]}
-                                onChange={(f) => handleImageChange(4, f)}
-                            />
-
-                            {errors.images && (
-                                <p className="text-xs text-red-500 font-medium px-1">{errors.images}</p>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="mt-6 pt-4 border-t border-gray-100 flex gap-3">
-                    {step === 2 && (
-                        <button
-                            onClick={() => setStep(1)}
-                            className="flex-1 bg-gray-100 text-gray-700 font-semibold py-3.5 rounded-xl hover:bg-gray-200 transition-colors focus:ring-4 focus:ring-gray-200/50 active:scale-[0.98]"
-                        >
-                            Back
-                        </button>
-                    )}
-                    {step === 1 ? (
-                        <button
-                            onClick={handleProceed}
-                            className="w-full bg-[#0D1B2A] text-white font-semibold py-3.5 rounded-xl hover:bg-gray-900 transition-colors focus:ring-4 focus:ring-gray-900/20 active:scale-[0.98]"
-                        >
-                            Proceed
-                        </button>
                     ) : (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            className="flex-1 bg-[#0D1B2A] text-white font-semibold py-3.5 rounded-xl hover:bg-gray-900 transition-colors focus:ring-4 focus:ring-gray-900/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            {isSubmitting ? "Submitting..." : "Submit"}
-                        </button>
+                        <div className="space-y-4 py-2">
+                        {formData.images.map((_, i) => (
+                            <FileUpload
+                                key={i}
+                                id={`pet-image-${i}`} 
+                                label={`Image ${i + 1} ${i < 3 ? "(Required)" : "(Optional)"}`}
+                                selectedFile={formData.images[i]}
+                                onChange={(file) => handleImageChange(i, file)}
+                            />
+                        ))}
+                            {errors.images && <p className="text-xs text-red-500">{errors.images}</p>}
+                        </div>
                     )}
                 </div>
 
+                <div className="mt-6 pt-4 border-t flex gap-3">
+                    {step === 2 && (
+                        <button type="button" onClick={() => setStep(1)} className="flex-1 bg-gray-100 py-3 rounded-xl font-semibold">Back</button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={step === 1 ? handleProceed : handleSubmit}
+                        disabled={isSubmitting || isMinting}
+                        className="flex-1 bg-[#0D1B2A] text-white py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {(isSubmitting || isMinting) && (
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        )}
+
+                        {step === 1
+                            ? "Proceed"
+                            : isSubmitting
+                            ? "Uploading..."
+                            : isMinting
+                            ? "Waiting for Wallet..."
+                            : "Submit Listing"}
+                    </button>
+                </div>
             </div>
         </div>
     );

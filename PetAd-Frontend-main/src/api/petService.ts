@@ -5,17 +5,18 @@ export const petService = {
         const { data, error } = await supabase
             .from('pets')
             .insert({
-                id: crypto.randomUUID(), // Or use the NFT tokenID if you have it
+                id: petData.id,
                 name: petData.name,
                 breed: petData.breed,
-                category: petData.petType.toLowerCase(),
+                category: petData.petType?.toLowerCase() || 'other',
                 age: petData.age,
                 location: petData.location,
                 description: petData.description,
                 image_url: petData.images[0], // Primary image
                 lister_address: ownerAddress.toLowerCase(),
                 gender: petData.gender,
-                status: 'available'
+                vaccination_status: petData.vaccination,
+                status: 'available' 
             })
             .select()
             .single();

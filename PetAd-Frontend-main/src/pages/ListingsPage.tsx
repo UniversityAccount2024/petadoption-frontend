@@ -1,8 +1,10 @@
-import dogImage from '../assets/dog.png';
-import dog1Image from '../assets/dog_1.png';
-import goldenretrival from "../assets/golden_retriever.png";
+const dogImage = "https://placehold.co/600x400?text=Dog+1";
+const dog1Image = "https://placehold.co/600x400?text=Dog+2";
+const goldenretrival = "https://placehold.co/600x400?text=Golden+Retriever";
 import ListingCard from '../components/listings/ListingCard';
 import ListingHeader from '../components/listings/ListingHeader';
+
+
 
 const mockListings = [
   {

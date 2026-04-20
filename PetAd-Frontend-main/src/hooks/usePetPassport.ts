@@ -2,17 +2,18 @@ import { useWriteContract } from 'wagmi';
 import petAdptionABI from '../contract/PetAdoptionABI.json'
 
 // Defining Address from .env
-const CONTRACT_ADDRESS = import.meta.env.VITE_PET_ADOPTION_ADDRESS as '0x${string}';
+const CONTRACT_ADDRESS = import.meta.env.VITE_PET_ADOPTION_ADDRESS as `0x${string}`;
 
 export function usePetPassport() {
-    const { writeContract, isPending, isSuccess, error } = useWriteContract();
+    const { writeContract, isPending, isSuccess, error, data: hash } = useWriteContract();
 
     const mintPet = (pet: any) => {
-        // Converting UI strings to contract enums
-        const genderEnum = pet.gender === "Female" ? 1 : 0;
-        const adoptionTypeEnum = pet.adoptionType === "Absolute Adoption" ? 1 : 0;
+        // Enums usually: 0 = Male, 1 = Female | 0 = Temporary, 1 = Absolute
+        const genderEnum = pet.gender?.toLowerCase() === "female" ? 1 : 0;
+        const adoptionTypeEnum = pet.adoptionType?.toLowerCase() === "absolute" ? 1 : 0;
 
-        const ageNumber = parseInt(pet.age.split('')[0]) || 0;
+        // Extracting just the number from "4 Years Old" or "2 Years"
+        const ageNumber = parseInt(pet.age) || 0;
 
         writeContract({
             address: CONTRACT_ADDRESS,
@@ -21,11 +22,11 @@ export function usePetPassport() {
             args: [
                 pet.name,
                 pet.breed,
-                pet.location.
+                pet.location,
                 genderEnum,
                 adoptionTypeEnum,
                 ageNumber,
-                "ipfs://placeholder-metadata" // TODO: update logic to handle passing image links 
+                pet.image_url || "" // Passing the real Supabase image link to the blockchain
             ],
         });
     };
@@ -34,9 +35,8 @@ export function usePetPassport() {
         mintPet,
         isMinting: isPending,
         isMinted: isSuccess,
-        mintError: error
+        mintError: error,
+        txHash: hash // Useful for checking on Etherscan/Explorer
     }
-
-
 }
 

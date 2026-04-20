@@ -1,4 +1,4 @@
-import pawsImg from "../../assets/paws.svg";
+import pawsImg from "../../assets/paws.jpg";
 
 interface PawIconProps {
     className?: string;

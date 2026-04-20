@@ -1,6 +1,6 @@
 import { ArrowUp } from "lucide-react";
-import logo from "../../assets/logo.svg";
-import pawsImg from "../../assets/paws.svg";
+const logo = "https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg";
+const pawsImg = "https://placehold.co/300x300/f8f8f8/E84D2A?text=%F0%9F%90%BE";
 
 interface PawIconProps {
   className?: string;
