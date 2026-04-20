@@ -12,7 +12,6 @@ import { mainnet, sepolia, } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider, } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
-
 const config = getDefaultConfig({
   appName: 'PetAd Pet Lovers',
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,

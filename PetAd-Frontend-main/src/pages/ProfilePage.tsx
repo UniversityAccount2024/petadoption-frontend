@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAccount } from 'wagmi'; 
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { supabase } from "../api/supabase";
 import { profileService } from "../api/profileService"
 
 import dogImg from "../assets/dog.png";
@@ -60,7 +59,7 @@ function getListingDetails(id: string) {
 // --- 2. The Main Component ---
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const { isConnected, address } = useAccount();
+    const { isConnected, address, status } = useAccount();
 
     // Profile and Loading State
     const [profile, setProfile] = useState<{full_name: string, avatar_url: string} | null>(null);
@@ -72,33 +71,47 @@ export default function ProfilePage() {
     const [listingDetailsId, setListingDetailsId] = useState<string | null>(null);
 
     // Fetch profile on mount or address change
-    useEffect(() => {
-        async function fetchProfile() {
-            if (!address) {
-                setLoading(false);
-                return;
-            }
-            try {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('full_name, avatar_url')
-                    .eq('wallet_address', address)
-                    .single(); 
 
-                if (data) setProfile(data);
+        useEffect(() => {
+        async function loadProfile() {
+            if (!isConnected || !address) {
+            setProfile(null);
+            setLoading(false);
+            return;
+            }
+
+            try {
+            setLoading(true);
+            const data = await profileService.getOrCreateProfile(address);
+            setProfile(data);
             } catch (err) {
-                console.error("Error fetching profile:", err);
+            console.error('Error loading profile:', err);
             } finally {
-                setLoading(false);
+            setLoading(false);
             }
         }
 
-        fetchProfile();
-    }, [address]);
+        loadProfile();
+        }, [address, isConnected]);
+
+        const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !address) return;
+
+        try {
+            setLoading(true);
+            const avatar_url = await profileService.uploadAvatar(address, file);
+            setProfile((prev) => prev ? { ...prev, avatar_url } : null);
+        } catch (error: any) {
+            alert(error.message || 'Failed to upload image');
+        } finally {
+            setLoading(false);
+        }
+        };
 
     const handleListerClick = () => {
         setAdoptionDetailsId(null);
-        navigate(`/profile`); 
+        navigate("/profile");
     };
 
     const handleAdopterClick = () => {
@@ -106,23 +119,6 @@ export default function ProfilePage() {
         navigate("/profile");
     };
 
-    // Upload image function
-        const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !address) return;
-
-        try {
-            setLoading(true);
-            const publicUrl = await profileService.uploadAvatar(address, file);
-            
-            setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : { full_name: "New User", avatar_url: publicUrl });
-            alert("Profile picture updated!");
-        } catch (error: any) {
-            alert(error.message || "Failed to upload image");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const adoptionDetails = adoptionDetailsId ? getAdoptionDetails(adoptionDetailsId) : null;
     const listingDetails = listingDetailsId ? getListingDetails(listingDetailsId) : null;
