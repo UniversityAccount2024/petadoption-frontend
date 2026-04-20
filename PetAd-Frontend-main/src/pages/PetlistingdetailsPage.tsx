@@ -15,7 +15,6 @@ export default function ListingDetailsPage() {
       if (!id) return;
       try {
         setLoading(true);
-        // Use the same service method we fixed earlier
         const data = await petService.getPetId(id);
         setPet(data);
       } catch (error) {

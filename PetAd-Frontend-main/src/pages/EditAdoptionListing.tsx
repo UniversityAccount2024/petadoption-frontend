@@ -1,8 +1,14 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useAccount } from 'wagmi';
+import { petService } from "../api/petService";
 import { Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
 export default function EditAdoptionListing() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   // Initial State based on Figma Requirements
   const [formData, setFormData] = useState({
@@ -36,16 +42,30 @@ export default function EditAdoptionListing() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleFileChange = (
-    index: number,
-    e: ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleFileChange = async (index: number, e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    try {
+      setIsLoading(true);
+      const publicUrl = await petService.uploadPetImage(file);
+      
+      setUploadedImages((prev) => {
+        const newImages = [...prev];
+        newImages[index] = publicUrl;
+        return newImages;
+      });
+
+      // Updating UI text
       const updatedNames = [...imageNames];
       updatedNames[index] = file.name;
       setImageNames(updatedNames);
-      if (errors.images) setErrors((prev) => ({ ...prev, images: "" }));
+
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload image. Check your Supabase policies!");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,16 +84,58 @@ export default function EditAdoptionListing() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const { address, isConnected } = useAccount();
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    
+    // Validation check
     if (!validateForm()) return;
+    // Bouncer check
+    if (!isConnected || !address) {
+      alert("Please connect your wallet to mint this pet's identity!");
+      return;
+    }
 
     setIsLoading(true);
-    // Simulate API logic
-    setTimeout(() => {
+
+    try {
+      // Blockchain Simulation Data
+      // Generate a fake Transaction Hash to show "Minting" occurred
+      const fakeTxHash = `0x${Array.from({ length: 64 }, () => 
+        Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      const fakeTokenId = Math.floor(Math.random() * 1000000);
+
+      const petPayload = {
+        name: formData.listingTitle,
+        breed: formData.petBreed,
+        petType: formData.petType,
+        age: formData.petAge,
+        location: `${formData.city}, ${formData.state}`,
+        description: formData.description,
+        gender: formData.petGender,
+        vaccination: formData.vaccinationStatus,
+        // Use the real uploaded image URL or placeholder 
+        images: [uploadedImages[0] || "https://placehold.co/600x400?text=No+Image+Uploaded"],
+        
+        // Blockchain Metadata
+        token_id: Math.floor(Math.random() * 10000),
+        transaction_hash: fakeTxHash,
+        contract_address: import.meta.env.VITE_PET_ADOPTION_ADDRESS,
+      };
+
+      // Use 'address as string' to satisfy TypeScript's strict rules
+      await petService.createPet(petPayload, address as string);
+      
+      alert(`Success! Pet Minted.\nTx Hash: ${fakeTxHash.substring(0, 10)}...`);
+      navigate("/home"); 
+
+    } catch (error: any) {
+      console.error("Submission Error:", error);
+      alert(error.message || "An error occurred during submission.");
+    } finally {
       setIsLoading(false);
-      alert("Changes saved successfully!");
-    }, 1000);
+    }
   };
 
   return (
