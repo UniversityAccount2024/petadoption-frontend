@@ -74,18 +74,6 @@ export default function ListingInfoTab({ pet }: ListingInfoTabProps) {
 
         {/* Dynamic Status Display */}
         <StatusInfo status={pet.status} />
-
-        <div className="flex gap-4 mt-4">
-          <button 
-            className="flex-1 py-3 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100 transition-colors"
-            onClick={() => console.log("Delete logic for:", pet.id)}
-          >
-            Delete Listing
-          </button>
-          <button className="flex-1 py-3 rounded-lg border border-gray-300 font-semibold hover:bg-gray-50 transition-colors">
-            Edit Details
-          </button>
-        </div>
       </div>
     </div>
   );

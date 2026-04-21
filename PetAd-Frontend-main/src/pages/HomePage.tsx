@@ -1,9 +1,11 @@
 import { HeroBackgroundPaws } from "../components/home/HeroBackgroundPaws";
-import { PetListingSection } from "../components/home/PetListingSection";
+import PetListingSection from "../components/home/PetListingSection";
 import { PetOwnerModal } from "../components/ui/PetOwnerModal";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { profileService } from "../api/profileService"; // Added this back
+import { profileService } from "../api/profileService";
+import { petService } from "../api/petService";
+import { useLocation } from "react-router-dom";
 
 // Use a web link as a fallback instead of a local file
 const DEFAULT_AVATAR = "https://placehold.co/400x400?text=No+Profile+Pic";
@@ -12,15 +14,33 @@ export default function HomePage() {
     const navigate = useNavigate();
     const [showOwnerModal, setShowOwnerModal] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [pets, setPets] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
     // State to hold the dynamic profile data from Supabase
     const [selectedOwner, setSelectedOwner] = useState<{name: string, avatar: string} | null>(null);
 
     useEffect(() => {
-        const refreshPets = () => setRefreshKey((prev) => prev + 1);
-        window.addEventListener("pet-listed", refreshPets);
-        return () => window.removeEventListener("pet-listed", refreshPets);
-    }, []);
+        const fetchPets = async () => {
+            try {
+                setIsLoading(true);
+                // The small delay helps Supabase finish indexing before we fetch
+                await new Promise(resolve => setTimeout(resolve, 150));
+                const data = await petService.getAllPets();
+                setPets(data);
+            } catch (error) {
+                console.error("Failed to fetch pets:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPets();
+
+        const handleRefresh = () => fetchPets();
+        window.addEventListener("pet-listed", handleRefresh);
+        return () => window.removeEventListener("pet-listed", handleRefresh);
+    },  [location.pathname]); 
 
     // Function to fetch the real owner data from Supabase
     const handleOwnerClick = async (walletAddress: string) => {
@@ -76,8 +96,8 @@ export default function HomePage() {
 
             {/* Auto Refresh Listing Section */}
             <PetListingSection
-                key={refreshKey}
-                // Updated to handle the wallet address passed from the pet card
+                pets={pets} // pass fetched pets
+                isLoading={isLoading} // pass loading stage 
                 onOwnerClick={(address: string) => handleOwnerClick(address)}
             />
 

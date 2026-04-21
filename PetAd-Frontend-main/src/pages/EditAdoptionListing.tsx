@@ -1,10 +1,12 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import { useAccount } from 'wagmi';
 import { petService } from "../api/petService";
 import { Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+
 
 export default function EditAdoptionListing() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -23,6 +25,45 @@ export default function EditAdoptionListing() {
     state: "Lagos",
     city: "Yaba",
   });
+
+  useEffect(() => {
+    if (id) {
+      const fetchPetData = async () => {
+        try {
+          setIsLoading(true);
+          const pet = await petService.getPetId(id);
+          
+          // Split location back into City and State
+          const [city, state] = pet.location ? pet.location.split(', ') : ["", ""];
+
+          setFormData({
+            adoptionType: "Absolute", // Adjust if you add this column to SQL
+            description: pet.description || "",
+            listingTitle: pet.name || "",
+            petType: pet.category ? pet.category.charAt(0).toUpperCase() + pet.category.slice(1) : "Dog",
+            petBreed: pet.breed || "",
+            petAge: pet.age?.toString() || "1",
+            petGender: pet.gender || "Male",
+            vaccinationStatus: pet.vaccination_status || "No",
+            state: state || "Lagos",
+            city: city || "Yaba",
+          });
+
+          if (pet.image_url) {
+            setUploadedImages([pet.image_url]);
+            const existingNames = [...imageNames];
+            existingNames[0] = "Existing Image";
+            setImageNames(existingNames);
+          }
+        } catch (error) {
+          console.error("Error loading pet for edit:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchPetData();
+    }
+  }, [id]);
 
   // Image filenames state
   const [imageNames, setImageNames] = useState<string[]>([
@@ -87,56 +128,61 @@ export default function EditAdoptionListing() {
   const { address, isConnected } = useAccount();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    
-    // Validation check
-    if (!validateForm()) return;
-    // Bouncer check
-    if (!isConnected || !address) {
-      alert("Please connect your wallet to mint this pet's identity!");
-      return;
-    }
+  event.preventDefault();
+  
+  if (!validateForm()) return;
 
-    setIsLoading(true);
+  if (!isConnected || !address) {
+    alert("Please connect your wallet!");
+    return;
+  }
 
-    try {
-      // Blockchain Simulation Data
-      // Generate a fake Transaction Hash to show "Minting" occurred
+  setIsLoading(true);
+
+  try {
+    const petPayload = {
+      name: formData.listingTitle,
+      breed: formData.petBreed,
+      category: formData.petType.toLowerCase(), 
+      age: parseInt(formData.petAge),
+      location: `${formData.city}, ${formData.state}`,
+      description: formData.description,
+      gender: formData.petGender,
+      vaccination_status: formData.vaccinationStatus,
+      image_url: uploadedImages[0] || "https://placehold.co/600x400?text=No+Image+Uploaded",
+    };
+
+    // Check if Updating or Creating 
+    if (id) {
+      // --- UPDATE MODE ---
+      await petService.updatePet(id, petPayload);
+      alert("Distributed record updated successfully!");
+    } else {
+      // --- CREATE MODE (MINTING SIMULATION) ---
+      // Generate blockchain metadata for new listings 
       const fakeTxHash = `0x${Array.from({ length: 64 }, () => 
         Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      const fakeTokenId = Math.floor(Math.random() * 1000000);
-
-      const petPayload = {
-        name: formData.listingTitle,
-        breed: formData.petBreed,
-        petType: formData.petType,
-        age: formData.petAge,
-        location: `${formData.city}, ${formData.state}`,
-        description: formData.description,
-        gender: formData.petGender,
-        vaccination: formData.vaccinationStatus,
-        // Use the real uploaded image URL or placeholder 
-        images: [uploadedImages[0] || "https://placehold.co/600x400?text=No+Image+Uploaded"],
-        
-        // Blockchain Metadata
+      
+      const mintingPayload = {
+        ...petPayload,
         token_id: Math.floor(Math.random() * 10000),
         transaction_hash: fakeTxHash,
         contract_address: import.meta.env.VITE_PET_ADOPTION_ADDRESS,
       };
 
-      // Use 'address as string' to satisfy TypeScript's strict rules
-      await petService.createPet(petPayload, address as string);
-      
+      await petService.createPet(mintingPayload, address as string);
       alert(`Success! Pet Minted.\nTx Hash: ${fakeTxHash.substring(0, 10)}...`);
-      navigate("/home"); 
-
-    } catch (error: any) {
-      console.error("Submission Error:", error);
-      alert(error.message || "An error occurred during submission.");
-    } finally {
-      setIsLoading(false);
     }
-  };
+
+    navigate("/home"); 
+
+  } catch (error: any) {
+    console.error("Submission Error:", error);
+    alert(error.message || "An error occurred during submission.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 bg-white min-h-screen font-sans text-[#1A1C1E]">

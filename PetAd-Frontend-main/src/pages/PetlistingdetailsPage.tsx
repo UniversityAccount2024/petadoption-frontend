@@ -1,11 +1,15 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { petService } from "../api/petService"; // Import your service
+import { useAccount } from "wagmi";
+import { petService } from "../api/petService"; 
 import ListingInfoTab from "../components/listings/ListingInfoTab";
 import InterestedUsersTab from "../components/listings/InterestedUsersTab";
 
-export default function ListingDetailsPage() {
+export default function PetlistingDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { address } = useAccount(); // Get current user wallet address
+  
   const [pet, setPet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"details" | "interested">("details");
@@ -26,16 +30,52 @@ export default function ListingDetailsPage() {
     fetchPetData();
   }, [id]);
 
+  // --- NEW: DELETE LOGIC ---
+  const handleDelete = async () => {
+    if (!id) return;
+    const confirmed = window.confirm("Are you sure you want to remove this pet from the distributed network?");
+    if (!confirmed) return;
+
+    try {
+      await petService.deletePet(id);
+      alert("Listing deleted successfully.");
+      navigate("/home", { replace: true });
+    } catch (error: any) {
+      alert("Error: " + error.message);
+    }
+  };
+
+  const handleEdit = () => {
+    navigate(`/edit-listing/${id}`);
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500 font-medium">Loading listing details...</div>;
   if (!pet) return <div className="min-h-screen flex items-center justify-center text-red-500 font-medium">Listing not found.</div>;
+
+  // Check if the current user is the owner
+  const isOwner = address && pet?.lister_address 
+  ? address.toLowerCase() === pet.lister_address.toLowerCase() 
+  : false;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100">
+        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
           <h1 className="text-xl font-bold text-[#0D162B]">
-            {pet.name} {/* Show real pet name instead of just ID */}
+            {pet.name}
           </h1>
+          
+          {/* Only show these if the user is the owner */}
+          {isOwner && activeTab === "details" && (
+            <div className="flex gap-3">
+              <button onClick={handleEdit} className="text-sm font-semibold text-gray-600 hover:text-gray-900 px-4 py-2 border rounded-lg">
+                Edit Details
+              </button>
+              <button onClick={handleDelete} className="text-sm font-semibold text-red-600 hover:text-red-700 px-4 py-2 bg-red-50 rounded-lg">
+                Delete Listing
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex border-b border-gray-100">
@@ -64,7 +104,6 @@ export default function ListingDetailsPage() {
 
         <div className="p-6">
           {activeTab === "details" ? (
-            /* Pass the real pet data into the tab */
             <ListingInfoTab pet={pet} /> 
           ) : (
             <InterestedUsersTab petId={id!} />

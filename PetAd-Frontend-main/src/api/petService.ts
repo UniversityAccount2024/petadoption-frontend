@@ -74,13 +74,23 @@ export const petService = {
     async updatePet(id: string, updates: any) {
         const { data, error } = await supabase
             .from('pets')
-            .update(updates)
+            .update({
+                name: updates.name,
+                breed: updates.breed,
+                category: (updates.category || updates.petType)?.toLowerCase(),
+                age: updates.age,
+                location: updates.location,
+                description: updates.description,
+                image_url: updates.image_url,
+                gender: updates.gender,
+                vaccination_status: updates.vaccination_status
+            })
             .eq('id', id)
-            .select()
-            .single();
+            .select(); 
 
         if (error) throw error;
-        return data;
+        // Return the first item in the array if it exists
+        return data && data.length > 0 ? data[0] : null;
     },
 
     // DELETE pet from database
