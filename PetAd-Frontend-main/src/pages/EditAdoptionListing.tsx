@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import { useAccount } from 'wagmi';
 import { petService } from "../api/petService";
 import { Upload } from "lucide-react";
@@ -157,23 +157,20 @@ export default function EditAdoptionListing() {
       await petService.updatePet(id, petPayload);
       alert("Distributed record updated successfully!");
     } else {
-      // --- CREATE (REAL BLOCKCHAIN) MODE ---
-      
+
+      // --- BLOCKCHAIN MODE ---
       // Trigger MetaMask and wait for the transaction on Sepolia
-      // This will use the ABI and registerPet function we set up
       const realTxHash = await petService.registerPetOnChain(petPayload);
-      
       // Wrap the payload with transaction data
       const mintingPayload = {
         ...petPayload,
-        token_id: Math.floor(Math.random() * 10000), // You could also pull this from the event logs
-        transaction_hash: realTxHash, // The actual hash from Sepolia
+        token_id: Math.floor(Math.random() * 10000), 
+        transaction_hash: realTxHash, 
         contract_address: import.meta.env.VITE_PET_ADOPTION_ADDRESS,
       };
 
       // Save the record to Supabase
       await petService.createPet(mintingPayload, address as string);
-      
       alert(`Success! Pet Minted to Blockchain.\nTx Hash: ${realTxHash.substring(0, 15)}...`);
     }
     
