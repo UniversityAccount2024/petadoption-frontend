@@ -24,7 +24,7 @@ export default function HomePage() {
         const fetchPets = async () => {
             try {
                 setIsLoading(true);
-                // The small delay helps Supabase finish indexing before we fetch
+                // The small delay helps Supabase finish indexing before fetching
                 await new Promise(resolve => setTimeout(resolve, 150));
                 const data = await petService.getAllPets();
                 setPets(data);

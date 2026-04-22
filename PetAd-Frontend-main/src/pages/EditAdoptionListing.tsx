@@ -152,33 +152,37 @@ export default function EditAdoptionListing() {
       image_url: uploadedImages[0] || "https://placehold.co/600x400?text=No+Image+Uploaded",
     };
 
-    // Check if Updating or Creating 
     if (id) {
       // --- UPDATE MODE ---
       await petService.updatePet(id, petPayload);
       alert("Distributed record updated successfully!");
     } else {
-      // --- CREATE MODE (MINTING SIMULATION) ---
-      // Generate blockchain metadata for new listings 
-      const fakeTxHash = `0x${Array.from({ length: 64 }, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      // --- CREATE (REAL BLOCKCHAIN) MODE ---
       
+      // Trigger MetaMask and wait for the transaction on Sepolia
+      // This will use the ABI and registerPet function we set up
+      const realTxHash = await petService.registerPetOnChain(petPayload);
+      
+      // Wrap the payload with transaction data
       const mintingPayload = {
         ...petPayload,
-        token_id: Math.floor(Math.random() * 10000),
-        transaction_hash: fakeTxHash,
+        token_id: Math.floor(Math.random() * 10000), // You could also pull this from the event logs
+        transaction_hash: realTxHash, // The actual hash from Sepolia
         contract_address: import.meta.env.VITE_PET_ADOPTION_ADDRESS,
       };
 
+      // Save the record to Supabase
       await petService.createPet(mintingPayload, address as string);
-      alert(`Success! Pet Minted.\nTx Hash: ${fakeTxHash.substring(0, 10)}...`);
+      
+      alert(`Success! Pet Minted to Blockchain.\nTx Hash: ${realTxHash.substring(0, 15)}...`);
     }
-
+    
     navigate("/home"); 
 
   } catch (error: any) {
     console.error("Submission Error:", error);
-    alert(error.message || "An error occurred during submission.");
+    // This helps catch if the user rejected the transaction in MetaMask
+    alert(error.reason || error.message || "An error occurred during submission.");
   } finally {
     setIsLoading(false);
   }
